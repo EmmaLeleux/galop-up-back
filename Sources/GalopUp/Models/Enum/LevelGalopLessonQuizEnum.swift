@@ -1,0 +1,17 @@
+//
+//  LevelGalopLessonQuizEnum.swift
+//  GalopUp
+//
+//  Created by Emma on 13/04/2026.
+//
+
+enum LevelGalopLessonQuizEnum: Codable{
+    case GALOP1
+    case GALOP2
+    case GALOP3
+    case GALOP4
+    case GALOP5
+    case GALOP6
+    case GALOP7
+    case CULTURE
+}
