@@ -3,19 +3,32 @@ import Fluent
 import FluentMySQLDriver
 import Vapor
 
-// configures your application
 public func configure(_ app: Application) async throws {
-    // uncomment to serve files from /Public folder
-    // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
-
+    
+    let config = try EnvConfig.validateEnv()
+    
+    app.storage[AppConfigKey.self] = config
+    
+    
     app.databases.use(DatabaseConfigurationFactory.mysql(
-        hostname: Environment.get("DATABASE_HOST") ?? "127.0.0.1",
-        port: Environment.get("DATABASE_PORT").flatMap(Int.init(_:)) ?? 3306,
-        username: Environment.get("DATABASE_USERNAME") ?? "root",
-        password: Environment.get("DATABASE_PASSWORD") ?? "",
-        database: Environment.get("DATABASE_NAME") ?? "galop_up_db"
+        hostname: config.DATABASE_HOST,
+        port: config.DATABASE_PORT,
+        username: config.DATABASE_USERNAME,
+        password: config.DATABASE_PASSWORD,
+        database: config.DATABASE_NAME
     ), as: .mysql)
-
+    
+    
+    let corsConfiguration = CORSMiddleware.Configuration(
+        allowedOrigin: .all,
+        allowedMethods: [.GET, .POST, .PUT, .PATCH, .DELETE, .OPTIONS],
+        allowedHeaders: [.accept, .authorization, .contentType, .origin],
+        cacheExpiration: 5
+    )
+    
+    let cors = CORSMiddleware(configuration: corsConfiguration)
+    app.middleware.use(cors)
+    
     app.migrations.add(UserMigration())
     app.migrations.add(TypeEventMigration())
     app.migrations.add(ThemeQuestionMigration())
@@ -41,9 +54,23 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(ReportMigration())
     app.migrations.add(PostOrCommentPictureMigration())
     app.migrations.add(AnswerMigration())
-
+    app.migrations.add(RefreshTokenMigration())
+    
     try await app.autoMigrate()
-
+    
     // register routes
     try routes(app)
+}
+
+struct AppConfigKey: StorageKey {
+    typealias Value = EnvConfig
+}
+
+extension Application {
+    var config: EnvConfig {
+        guard let config = storage[AppConfigKey.self] else {
+            fatalError("AppConfig not loaded")
+        }
+        return config
+    }
 }

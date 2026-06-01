@@ -58,14 +58,16 @@ final class User: Model, @unchecked Sendable, Content {
     @Children(for: \.$user) var quiz: [QuizSession]
     
     @Children(for: \.$author) var reportQuestion: [QuestionReport]
-
+    
     @Children(for: \.$user) var sanctions: [Moderation]
     
     @Children(for: \.$admin) var moderations: [Moderation]
     
     @Children(for: \.$user) var questionCreated: [Question]
-
-
+    
+    @Children(for: \.$user) var refreshToken: [RefreshToken]
+    
+    
     @Siblings(through: LessonLikeByUser.self, from: \.$user, to: \.$lesson)
     var lessonLikes: [Lesson]
     
@@ -82,5 +84,26 @@ final class User: Model, @unchecked Sendable, Content {
     var eventLikes: [EventCustom]
     
     init() {}
+    
+    func toDTO() -> UserResponseDTO{
+        
+        let age = Calendar.current.dateComponents([.year], from: self.birthday ?? Date(), to: Date()).year ?? 0
+        //permet de récuperer que l'âge de l'user
+        
+        return UserResponseDTO(
+            id: self.id ?? UUID(),
+            username: self.username,
+            email: self.email,
+            age: age,
+            googleId: self.googleId,
+            appleId: self.appleId,
+            level: self.level,
+            picture: self.picture,
+            role: self.role,
+            isBanned: self.isBanned,
+            deletedAt: self.deletedAt
+        )
+        
+    }
     
 }
