@@ -20,6 +20,10 @@ struct AuthController: RouteCollection {
         auth.post("login", use: login)
         auth.post("register", use: register)
         auth.post("google", use: google)
+        auth.post("refresh-token", use: refreshAccessToken)
+        
+        let protectedRoutes = auth.grouped(GalopUpMiddleware())
+        protectedRoutes.delete("logout", use: logout)
         
     }
     
@@ -46,6 +50,29 @@ struct AuthController: RouteCollection {
         
         
     }
+    
+    @Sendable
+    func logout(req: Request) async throws -> HTTPStatus {
+        try LogoutDTO.validate(content: req)
+        let refreshToken = try req.content.decode(LogoutDTO.self)
+        
+        let payload = try req.auth.require(UserPayload.self)
+        let tokens = try await RefreshToken.query(on: req.db)
+            .filter(\.$user.$id == payload.id)
+            .all()
+        for refresh in tokens{
+            if try Bcrypt.verify(refreshToken.refreshToken, created: refresh.token) {
+                try await refresh.delete(on: req.db)
+                return .noContent
+                
+            }
+        }
+        
+        throw Abort(.notFound)
+    }
+    
+    
+    
     
     @Sendable
     func register(req: Request) async throws -> LoginResponse{
@@ -103,6 +130,35 @@ struct AuthController: RouteCollection {
         
         try await newUser.save(on: req.db)
         return try await generateToken(user: newUser, req: req)
+        
+    }
+    
+    
+    @Sendable
+    func refreshAccessToken(req: Request) async throws -> LoginResponse {
+        print("entrée dans la route refresh")
+        try RefreshTokenRequestDTO.validate(content: req)
+        let refreshToken = try req.content.decode(RefreshTokenRequestDTO.self)
+        
+        let tokens = try await RefreshToken.query(on: req.db)
+            .filter(\.$user.$id == refreshToken.userId)
+            .all()
+        for refresh in tokens{
+            if try Bcrypt.verify(refreshToken.refreshToken, created: refresh.token) {
+                if refresh.expireAt > Date() {
+                    try await refresh.delete(on: req.db)
+                    guard let user = try await User.find(refreshToken.userId.self, on: req.db) else{
+                        throw Abort(.notFound)
+                        
+                    }
+                    print ("génération des tokens")
+                    return try await generateToken(user: user, req: req)
+                }
+                
+                
+            }
+        }
+        throw Abort(.notFound)
         
     }
     
