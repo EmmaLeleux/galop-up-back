@@ -88,6 +88,21 @@
             value = "3306"
             isEnabled = "YES">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "JWT_SECRET"
+            value = "galb3hjop-Ppphb4j6kpJzbnUp"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "GOOGLE_ID_CLIENT_IOS"
+            value = "527213311843-hdt0mvhcrqmrl800896d613tr2p7d5ou.apps.googleusercontent.com"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "JWT_SECRET_REFRESH"
+            value = "g4allb3hjope-Rrupjsb9j7k-pJlanUsopPf5hyjts"
+            isEnabled = "YES">
+         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
