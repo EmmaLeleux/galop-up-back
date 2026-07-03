@@ -103,6 +103,31 @@
             value = "g4allb3hjope-Rrupjsb9j7k-pJlanUsopPf5hyjts"
             isEnabled = "YES">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "RUSTFS_ENDPOINT"
+            value = "http://localhost:9001"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "RUSTFS_ACCESS_KEY"
+            value = "rustfsadmin"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "RUSTFS_SECRET_KEY"
+            value = "rustfsadmin"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "RUSTFS_REGION"
+            value = "us-east-1"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "RUSTFS_BUCKET"
+            value = "galop-up"
+            isEnabled = "YES">
+         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction

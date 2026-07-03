@@ -19,7 +19,6 @@ struct UserMigration : AsyncMigration {
             .field("googleId", .string)
             .field("appleId", .string)
             .field("level", .string)
-            .field("picture", .string)
             .field("role", .string, .required)
             .field("isBanned", .bool, .required)
             .field("deletedAt", .datetime)

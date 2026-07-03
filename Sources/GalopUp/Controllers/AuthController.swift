@@ -161,7 +161,7 @@ struct AuthController: RouteCollection {
         throw Abort(.notFound)
         
     }
-    
+ 
     
     // MARK: Service Function
     

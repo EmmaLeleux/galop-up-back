@@ -15,7 +15,7 @@ struct UserResponseDTO : Content {
     let googleId: String?
     let appleId: String?
     let level: LevelGalopUserEnum?
-    let picture: String? //envoyer image par défaut si rien en bdd ?
+    let picture: GetPictureDto?
     let role: UserRoleEnum
     let isBanned: Bool
     let deletedAt: Date?

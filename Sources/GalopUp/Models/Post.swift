@@ -29,7 +29,7 @@ final class Post: Model, @unchecked Sendable, Content {
     @Parent(key: "user_id")
     var user: User
     
-    @Children(for: \.$post) var pictures: [PostOrCommentPicture]
+    @Children(for: \.$post) var pictures: [Picture]
     
     @Children(for: \.$post) var comment: [Comments]
     
