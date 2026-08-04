@@ -19,7 +19,8 @@ struct UserController: RouteCollection {
         let protectedRoutes = user.grouped(GalopUpMiddleware())
         protectedRoutes.get("me", use: getMyUser)
         protectedRoutes.patch(use: updateUser)
-        
+        protectedRoutes.on(.PATCH, body: .collect(maxSize: "15mb"), use: updateUser)
+
         
         
     }
@@ -33,6 +34,8 @@ struct UserController: RouteCollection {
             throw Abort(.notFound, reason: "USER_NOT_FOUND")
         }
         
+        try await user.$pictureId.load(on: req.db)
+
         let url = try await pictureService.getPresignedUrl(key: user.pictureId?.key ?? "")
         return user.toDTO(url: url)
     }
@@ -63,13 +66,16 @@ struct UserController: RouteCollection {
                 newKey = try await pictureService.upload(createPictureDto: createPicture)
                 let newPictureId = createPicture.toModel(key: newKey)
                 try await newPictureId.save(on: req.db)
-                user.pictureId = newPictureId
+                user.$pictureId.id = newPictureId.id
             }
             catch{
                 if newKey != ""{
                     try await pictureService.delete(key: newKey)
                 }
-                user.pictureId = oldPicture
+                if let oldPicture{
+                    user.$pictureId.id = oldPicture.id
+
+                }
                 throw Abort(.badRequest, reason: "ERROR_UPLOADING_PICTURE")
             }
             
@@ -82,7 +88,8 @@ struct UserController: RouteCollection {
         
         
         try await user.save(on: req.db)
-        
+        try await user.$pictureId.load(on: req.db)
+
         let url = try await pictureService.getPresignedUrl(key: user.pictureId?.key ?? "")
 
         return user.toDTO(url: url)

@@ -38,6 +38,9 @@ final class Post: Model, @unchecked Sendable, Content {
     @Siblings(through: LessonPost.self, from: \.$post, to: \.$lesson)
     var lessons: [Lesson]
     
+    @Siblings(through: EventPost.self, from: \.$post, to: \.$event)
+    var event: [EventCustom]
+    
     @Siblings(through: PostLikeByUser.self, from: \.$post, to: \.$user)
     var likes: [User]
     

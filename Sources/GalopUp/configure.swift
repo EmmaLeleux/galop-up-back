@@ -56,6 +56,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(ReportMigration())
     app.migrations.add(AnswerMigration())
     app.migrations.add(RefreshTokenMigration())
+    app.migrations.add(EventPostMigration())
     
     try await app.autoMigrate()
     

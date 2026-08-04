@@ -14,4 +14,3 @@ struct GetPictureDto : Content {
     let url: String
     let order: Int?
 }
-

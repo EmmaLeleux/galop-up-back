@@ -25,6 +25,7 @@ struct AuthController: RouteCollection {
         let protectedRoutes = auth.grouped(GalopUpMiddleware())
         protectedRoutes.delete("logout", use: logout)
         
+        
     }
     
     @Sendable
@@ -140,14 +141,17 @@ struct AuthController: RouteCollection {
         try RefreshTokenRequestDTO.validate(content: req)
         let refreshToken = try req.content.decode(RefreshTokenRequestDTO.self)
         
+        let signerRefresh = JWTSigner.hs256(key: req.application.config.JWT_SECRET_REFRESH)
+        let payload = try signerRefresh.verify(refreshToken.refreshToken, as: UserPayload.self)
+        
         let tokens = try await RefreshToken.query(on: req.db)
-            .filter(\.$user.$id == refreshToken.userId)
+            .filter(\.$user.$id == payload.id)
             .all()
         for refresh in tokens{
             if try Bcrypt.verify(refreshToken.refreshToken, created: refresh.token) {
                 if refresh.expireAt > Date() {
                     try await refresh.delete(on: req.db)
-                    guard let user = try await User.find(refreshToken.userId.self, on: req.db) else{
+                    guard let user = try await User.find(payload.id, on: req.db) else{
                         throw Abort(.notFound)
                         
                     }
@@ -161,7 +165,8 @@ struct AuthController: RouteCollection {
         throw Abort(.notFound)
         
     }
- 
+    
+    
     
     // MARK: Service Function
     
