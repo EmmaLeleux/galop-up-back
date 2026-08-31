@@ -11,13 +11,15 @@ import JWT
 
 struct UserController: RouteCollection {
     
+    let pictureService: PictureService
     
     func boot(routes: any RoutesBuilder) throws {
         let user = routes.grouped("user")
         
         let protectedRoutes = user.grouped(GalopUpMiddleware())
         protectedRoutes.get("me", use: getMyUser)
-        
+        protectedRoutes.on(.PATCH, body: .collect(maxSize: "15mb"), use: updateUser)
+
         
         
     }
@@ -30,10 +32,110 @@ struct UserController: RouteCollection {
         guard let user = try await User.query(on: req.db).filter(\.$id == payload.id).first() else {
             throw Abort(.notFound, reason: "USER_NOT_FOUND")
         }
-        return user.toDTO()
+        
+        try await user.$pictureId.load(on: req.db)
+
+        let url = try await pictureService.getPresignedUrl(key: user.pictureId?.key ?? "")
+        return user.toDTO(url: url)
     }
     
     
+    @Sendable
+    func getUserByIdController(req: Request) async throws -> UserResponseDTO {
+        try req.auth.require(UserPayload.self)
+        
+        guard let user = try await User.find(req.parameters.get("id"), on: req.db) else {
+            throw Abort(.notFound, reason: "USER_NOT_FOUND")
+        }
+        
+        try await user.$pictureId.load(on: req.db)
+
+        let url = try await pictureService.getPresignedUrl(key: user.pictureId?.key ?? "")
+        return user.toDTO(url: url)
+    }
+    
+    
+    
+    @Sendable
+    func updateUser(req: Request) async throws -> UserResponseDTO {
+        let payload = try req.auth.require(UserPayload.self)
+        
+        guard let user = try await User.query(on: req.db).filter(\.$id == payload.id).first() else {
+            throw Abort(.notFound, reason: "USER_NOT_FOUND")
+        }
+        
+        let updatedUser = try req.content.decode(UpdateUserDTO.self)
+        
+        if let _ = updatedUser.picture, let _ = updatedUser.pictureInBase{
+           throw Abort(.badRequest, reason: "CANNOT_UPDATE_BOTH_PICTURE_AND_PICTURE_IN_BASE")
+        }
+        
+        //vérifier que username est unique. Ici ou via trigger SQL ?
+        if let newUsername = updatedUser.username{
+            user.username = newUsername
+        }
+        
+        if let newLevel = updatedUser.level{
+            print(newLevel)
+            user.level = newLevel
+        }
+        
+        try await user.$pictureId.load(on: req.db)
+        let oldPicture = user.pictureId
+
+        
+        if let newPicture = updatedUser.picture{
+            let createPicture = CreatePictureDto(file: newPicture)
+            var newKey: String = ""
+            
+            do{
+                
+                newKey = try await pictureService.upload(createPictureDto: createPicture)
+                let newPictureId = createPicture.toModel(key: newKey)
+                try await newPictureId.save(on: req.db)
+                user.$pictureId.id = newPictureId.id
+            }
+            catch{
+                if newKey != ""{
+                    try await pictureService.delete(key: newKey)
+                }
+                if let oldPicture{
+                    user.$pictureId.id = oldPicture.id
+
+                }
+                throw Abort(.badRequest, reason: "ERROR_UPLOADING_PICTURE")
+            }
+            
+            try await user.save(on: req.db)
+            try await user.$pictureId.load(on: req.db)
+            
+            if let oldPicture, !oldPicture.isDefault{
+                try await pictureService.delete(key: oldPicture.key)
+                try await oldPicture.delete(on: req.db)
+            }
+            
+        }
+        
+        else if let assignPicture = updatedUser.pictureInBase {
+            user.$pictureId.id = assignPicture
+            
+            try await user.save(on: req.db)
+            try await user.$pictureId.load(on: req.db)
+            
+            if let oldPicture, !oldPicture.isDefault{
+                try await pictureService.delete(key: oldPicture.key)
+                try await oldPicture.delete(on: req.db)
+            }
+        }
+        
+        
+        try await user.save(on: req.db)
+
+
+        let url = try await pictureService.getPresignedUrl(key: user.pictureId?.key ?? "")
+
+        return user.toDTO(url: url)
+    }
     
     
     //MARK: SERVICE FUNCTIONS
@@ -68,5 +170,17 @@ struct UserController: RouteCollection {
         if existingUsername != nil {
             throw Abort(.badRequest, reason: "USERNAME_ALREADY_EXISTS")
         }
+    }
+    
+    func getUserById(req: Request, userId: UUID) async throws -> UserResponseDTO {
+        
+        guard let user = try await User.find(userId, on: req.db) else {
+            throw Abort(.notFound, reason: "USER_NOT_FOUND")
+        }
+        
+        try await user.$pictureId.load(on: req.db)
+
+        let url = try await pictureService.getPresignedUrl(key: user.pictureId?.key ?? "")
+        return user.toDTO(url: url)
     }
 }

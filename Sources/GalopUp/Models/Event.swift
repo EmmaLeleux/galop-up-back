@@ -52,6 +52,9 @@ final class EventCustom: Model, @unchecked Sendable, Content {
     @Siblings(through: EventLike.self, from: \.$event, to: \.$user)
     var likes: [User]
     
+    @Siblings(through: EventPost.self, from: \.$event, to: \.$post)
+    var posts: [Post]
+    
     init() {}
     
 }

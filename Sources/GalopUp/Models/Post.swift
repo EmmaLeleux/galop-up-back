@@ -29,7 +29,7 @@ final class Post: Model, @unchecked Sendable, Content {
     @Parent(key: "user_id")
     var user: User
     
-    @Children(for: \.$post) var pictures: [PostOrCommentPicture]
+    @Children(for: \.$post) var pictures: [Picture]
     
     @Children(for: \.$post) var comment: [Comments]
     
@@ -37,6 +37,9 @@ final class Post: Model, @unchecked Sendable, Content {
     
     @Siblings(through: LessonPost.self, from: \.$post, to: \.$lesson)
     var lessons: [Lesson]
+    
+    @Siblings(through: EventPost.self, from: \.$post, to: \.$event)
+    var event: [EventCustom]
     
     @Siblings(through: PostLikeByUser.self, from: \.$post, to: \.$user)
     var likes: [User]
@@ -46,5 +49,22 @@ final class Post: Model, @unchecked Sendable, Content {
     
     
     init() {}
+    
+    
+    func toDTO(pictureDto: [GetPictureDto], userDto: UserResponseDTO, nbLikes: Int) -> PostResponseDTO{
+        
+        
+        
+        return PostResponseDTO(
+            id: self.id ?? UUID(),
+            title: self.title,
+            content: self.content,
+            pictures: pictureDto,
+            author: userDto,
+            createdAt: self.createdAt ?? Date(),
+            nbLikes: nbLikes
+        )
+        
+    }
     
 }

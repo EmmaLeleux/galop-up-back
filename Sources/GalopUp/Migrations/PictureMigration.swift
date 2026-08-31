@@ -7,19 +7,20 @@
 
 import Fluent
 
-struct PostOrCommentPictureMigration : AsyncMigration {
+struct PictureMigration : AsyncMigration {
     func prepare(on database: any Database) async throws {
         
-        try await database.schema("postOrCommentPicture")
+        try await database.schema("picture")
             .id()
-            .field("picture", .string, .required)
-            .field("order", .int, .required)
+            .field("key", .string, .required)
+            .field("name", .string, .required)
+            .field("order", .int)
             .field("post_id", .uuid, .references("post", "id"))
             .field("comment_id", .uuid, .references("comment", "id"))
             .create()
     }
     
     func revert(on database: any Database) async throws {
-        try await database.schema("postOrCommentPicture").delete()
+        try await database.schema("picture").delete()
     }
 }

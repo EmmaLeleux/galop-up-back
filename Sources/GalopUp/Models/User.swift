@@ -35,9 +35,6 @@ final class User: Model, @unchecked Sendable, Content {
     @Field(key: "level")
     var level: LevelGalopUserEnum?
     
-    @Field(key: "picture")
-    var picture: String?
-    
     @Field(key: "role")
     var role: UserRoleEnum
     
@@ -46,6 +43,8 @@ final class User: Model, @unchecked Sendable, Content {
     
     @Field(key: "deletedAt")
     var deletedAt: Date?
+    
+    @OptionalParent(key: "picture_id") var pictureId: Picture?
     
     @Children(for: \.$user) var posts: [Post]
     
@@ -66,6 +65,7 @@ final class User: Model, @unchecked Sendable, Content {
     @Children(for: \.$user) var questionCreated: [Question]
     
     @Children(for: \.$user) var refreshToken: [RefreshToken]
+   
     
     
     @Siblings(through: LessonLikeByUser.self, from: \.$user, to: \.$lesson)
@@ -85,7 +85,7 @@ final class User: Model, @unchecked Sendable, Content {
     
     init() {}
     
-    func toDTO() -> UserResponseDTO{
+    func toDTO(url: String) -> UserResponseDTO{
         
         let age = Calendar.current.dateComponents([.year], from: self.birthday ?? Date(), to: Date()).year ?? 0
         //permet de récuperer que l'âge de l'user
@@ -98,7 +98,7 @@ final class User: Model, @unchecked Sendable, Content {
             googleId: self.googleId,
             appleId: self.appleId,
             level: self.level,
-            picture: self.picture,
+            picture: self.pictureId?.toDTO(url: url),
             role: self.role,
             isBanned: self.isBanned,
             deletedAt: self.deletedAt
