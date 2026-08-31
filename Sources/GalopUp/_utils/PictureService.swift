@@ -48,6 +48,7 @@ struct PictureService {
         return url.absoluteString
     }
     
+    
     func delete(key: String) async throws{
         let deleteRequest = S3.DeleteObjectRequest(
                 bucket: mainBucket,

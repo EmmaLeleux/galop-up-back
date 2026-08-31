@@ -57,6 +57,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(AnswerMigration())
     app.migrations.add(RefreshTokenMigration())
     app.migrations.add(EventPostMigration())
+    app.migrations.add(AddIsDefaultToPictureMigration())
     
     try await app.autoMigrate()
     

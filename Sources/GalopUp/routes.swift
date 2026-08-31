@@ -19,7 +19,12 @@ func routes(_ app: Application) throws {
 
     let pictureService = PictureService(s3: s3, mainBucket: config.RUSTFS_BUCKET)
     
+    let userController = UserController(pictureService: pictureService)
+    
+    let pictureController = PictureController(pictureService: pictureService)
 
     try app.register(collection: AuthController())
-    try app.register(collection: UserController(pictureService: pictureService))
+    try app.register(collection: userController)
+    try app.register(collection: pictureController)
+    try app.register(collection: PostController(pictureService: pictureService, userController: userController, pictureController: pictureController))
 }

@@ -20,6 +20,9 @@ final class Picture: Model, @unchecked Sendable, Content {
     @Field(key: "name")
     var name: String
     
+    @Field(key: "isDefault")
+    var isDefault: Bool
+    
     @OptionalField(key: "order")
     var order: Int?
     
@@ -36,14 +39,14 @@ final class Picture: Model, @unchecked Sendable, Content {
     init() {}
     
     func toDTO(url: String) -> GetPictureDto{
-    
-        
+            
         return GetPictureDto(
             id: self.id ?? UUID(),
             key: self.key,
             name: self.name,
             url: url,
             order: self.order,
+            isDefault: self.isDefault
             
         )
         

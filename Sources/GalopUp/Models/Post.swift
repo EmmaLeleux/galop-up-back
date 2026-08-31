@@ -50,4 +50,21 @@ final class Post: Model, @unchecked Sendable, Content {
     
     init() {}
     
+    
+    func toDTO(pictureDto: [GetPictureDto], userDto: UserResponseDTO, nbLikes: Int) -> PostResponseDTO{
+        
+        
+        
+        return PostResponseDTO(
+            id: self.id ?? UUID(),
+            title: self.title,
+            content: self.content,
+            pictures: pictureDto,
+            author: userDto,
+            createdAt: self.createdAt ?? Date(),
+            nbLikes: nbLikes
+        )
+        
+    }
+    
 }

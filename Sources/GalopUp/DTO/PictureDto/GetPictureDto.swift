@@ -13,4 +13,5 @@ struct GetPictureDto : Content {
     let name: String
     let url: String
     let order: Int?
+    let isDefault: Bool
 }

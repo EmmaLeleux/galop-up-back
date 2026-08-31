@@ -10,5 +10,6 @@ import Vapor
 struct UpdateUserDTO: Codable {
     let username: String?
     let picture: File?
+    let pictureInBase: UUID?
     let level: LevelGalopUserEnum?
 }
