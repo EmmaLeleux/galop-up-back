@@ -14,6 +14,7 @@ struct PostResponseDTO : Content {
     let pictures: [GetPictureDto]
     let author: UserResponseDTO
     let createdAt: Date
-    let nbLikes: Int
+    let likes: [UserResponseDTO]
+    let isLikeByMe: Bool
    
 }

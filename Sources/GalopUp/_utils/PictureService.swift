@@ -43,7 +43,7 @@ struct PictureService {
         let url = try await s3.signURL(
             url: URL(string: "http://localhost:9001/\(mainBucket)/\(key)")!,
             httpMethod: .GET,
-            expires: .minutes(60)
+            expires: .hours(24)
         )
         return url.absoluteString
     }

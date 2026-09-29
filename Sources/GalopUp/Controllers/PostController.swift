@@ -11,13 +11,15 @@ struct PostController: RouteCollection {
     let pictureService: PictureService
     let userController: UserController
     let pictureController: PictureController
-    
+    let protectService: ProtectService
     func boot(routes: any RoutesBuilder) throws {
         let post = routes.grouped("post")
         
         let protectedRoutes = post.grouped(GalopUpMiddleware())
         protectedRoutes.on(.POST, body: .collect(maxSize: "90mb"), use: createPost)
         protectedRoutes.get(use: getPosts)
+        protectedRoutes.on(.POST, ":postId", "like", use: likePost)
+        protectedRoutes.on(.DELETE, ":postId", "like", use: unlikePost)
     }
     
     @Sendable
@@ -34,39 +36,106 @@ struct PostController: RouteCollection {
         }
         
         
-        for (index, picture) in postDto.pictures.enumerated(){
-            let createPicture = CreatePictureDto(file: picture, order: index)
-            
-            let newKey = try await pictureService.upload(createPictureDto: createPicture)
-            let newPictureId = createPicture.toModel(key: newKey, postId: post.id)
-            try await newPictureId.save(on: req.db)
+        if let postPicture = postDto.pictures{
+            if postPicture.count > 4 {
+                throw Abort(.badRequest, reason: "TOO_MANY_POST_PICTURES")
+            }
+            for (index, picture) in postPicture.enumerated(){
+                let createPicture = CreatePictureDto(file: picture, order: index)
+                
+                let newKey = try await pictureService.upload(createPictureDto: createPicture)
+                let newPictureId = createPicture.toModel(key: newKey, postId: post.id)
+                try await newPictureId.save(on: req.db)
+            }
         }
+        
+        
         try await post.$user.load(on: req.db)
-
+        try await post.$likes.load(on: req.db)
+        
         
         
         let picturesPostDto = try await pictureController.getPicturesByPostId(postId: postId, req: req)
         
         let userDto = try await userController.getMyUser(req: req)
-        return post.toDTO(pictureDto: picturesPostDto, userDto: userDto, nbLikes: 0)
+        return post.toDTO(pictureDto: picturesPostDto, userDto: userDto, currentUserId: payload.id)
     }
     
     @Sendable
-    func getPosts(req: Request) async throws -> [PostResponseDTO] {
-        try req.auth.require(UserPayload.self)
+    func getPosts(req: Request) async throws -> PaginatedPostsDTO {
+        let payload = try req.auth.require(UserPayload.self)
         
-        let posts = try await Post.query(on: req.db)
-            .with(\.$user)
+        let pageSize = 10
+        let cursorString = try? req.query.get(String.self, at: "cursor")
+        let cursorDate = cursorString.flatMap { ISO8601DateFormatter().date(from: $0) }
+        
+        var query = Post.query(on: req.db).with(\.$user).with(\.$likes)
+        if let cursorDate {
+            query = query.filter(\.$createdAt, .lessThan, cursorDate)        }
+        
+        let posts = try await query
+            .sort(\.$createdAt, .descending)
+            .limit(pageSize)
             .all()
         
         var postsDto: [PostResponseDTO] = []
-
+        
         for post in posts {
             let picturesPostsDto = try await pictureController.getPicturesByPostId(postId: post.id!, req: req)
             let userDto = try await userController.getUserById(req: req, userId: post.$user.id)
-            postsDto.append(post.toDTO(pictureDto: picturesPostsDto, userDto: userDto, nbLikes: 1))
+            postsDto.append(post.toDTO(pictureDto: picturesPostsDto, userDto: userDto, currentUserId: payload.id))
         }
         
-        return postsDto
+        let nextCursor: String?
+        if let last = posts.last, posts.count == pageSize, let createdAt = last.createdAt {
+            nextCursor = ISO8601DateFormatter().string(from: createdAt)
+        } else {
+            nextCursor = nil
+        }
+        
+        return PaginatedPostsDTO(posts: postsDto, nextCursor: nextCursor)
+    }
+    
+    @Sendable
+    func likePost(req: Request) async throws -> HTTPStatus {
+        let user = try await protectService.protect(req: req, roles: [.ADMIN])
+
+        guard let postId = req.parameters.get("postId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+        guard let userId = user.id else{
+            throw Abort(.badRequest)
+        }
+        
+        let existingLike = try await PostLikeByUser.query(on: req.db)
+            .filter(\.$post.$id, .equal, postId)
+            .filter(\.$user.$id, .equal, userId)
+            .first()
+        
+        guard existingLike == nil else {
+            return .noContent
+        }
+        
+        let like = PostLikeByUser()
+        like.$post.id = postId
+        like.$user.id = userId
+        try await like.save(on: req.db)
+        print(like)
+        return .created
+    }
+    
+    @Sendable
+    func unlikePost(req: Request) async throws -> HTTPStatus {
+        let payload = try req.auth.require(UserPayload.self)
+        guard let postId = req.parameters.get("postId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+        
+        try await PostLikeByUser.query(on: req.db)
+            .filter(\.$post.$id, .equal, postId)
+            .filter(\.$user.$id, .equal, payload.id)
+            .delete()
+        
+        return .noContent
     }
 }

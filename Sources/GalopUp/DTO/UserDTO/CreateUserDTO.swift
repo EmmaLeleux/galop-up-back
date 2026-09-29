@@ -11,6 +11,7 @@ struct CreateUserDTO : Content, Validatable {
     let email : String
     let password : String
     let confirmPassword: String
+    let role: UserRoleEnum
     
     static func validations(_ validations: inout Validations){
         validations.add("email", as: String.self, is: .email, customFailureDescription: "EMAIL_INVALID")
@@ -22,7 +23,7 @@ struct CreateUserDTO : Content, Validatable {
         let model = User()
         model.email = email
         model.password = password
-        model.role = UserRoleEnum.USER
+        model.role = role
         model.isBanned = false
         return model
     }

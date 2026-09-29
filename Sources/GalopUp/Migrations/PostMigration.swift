@@ -13,7 +13,7 @@ struct PostMigration : AsyncMigration {
         try await database.schema("post")
             .id()
             .field("title", .string, .required)
-            .field("content", .string, .required)
+            .field("content", .custom("TEXT"), .required)
             .field("createdAt", .datetime)
             .field("deletedAt", .datetime)
             .field("user_id", .uuid, .required,.references("user", "id"))
