@@ -51,7 +51,7 @@ final class Post: Model, @unchecked Sendable, Content {
     init() {}
     
     
-    func toDTO(pictureDto: [GetPictureDto], userDto: UserResponseDTO, currentUserId: UUID) -> PostResponseDTO{
+    func toDTO(pictureDto: [GetPictureDto], userDto: UserPublicResponseDTO, currentUserId: UUID) -> PostResponseDTO{
         
         return PostResponseDTO(
             id: self.id ?? UUID(),
@@ -60,7 +60,7 @@ final class Post: Model, @unchecked Sendable, Content {
             pictures: pictureDto,
             author: userDto,
             createdAt: self.createdAt ?? Date(),
-            likes: self.likes.map({$0.toDTO(url: "") }),
+            nbLikes: self.likes.count,
             isLikeByMe: self.likes.contains { $0.id == currentUserId }
         )
         

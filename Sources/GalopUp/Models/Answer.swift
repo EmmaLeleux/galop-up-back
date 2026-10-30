@@ -26,4 +26,12 @@ final class Answer: Model, @unchecked Sendable, Content {
     
     init() {}
     
+    func toDTO() -> AnswerResponseDTO{
+                    
+        return AnswerResponseDTO(
+            id: self.id ?? UUID(),
+            description: self.description
+        )
+    }
+    
 }

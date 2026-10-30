@@ -35,6 +35,7 @@ struct AuthController: RouteCollection {
         
         guard let user = try await User.query(on: req.db)
             .filter(\.$email == userData.email)
+            .filter(\.$deletedAt == nil)
             .first() else {
             throw Abort(.unauthorized, reason: "INVALID_CREDENTIALS")
         }
@@ -58,18 +59,12 @@ struct AuthController: RouteCollection {
         let refreshToken = try req.content.decode(LogoutDTO.self)
         
         let payload = try req.auth.require(UserPayload.self)
-        let tokens = try await RefreshToken.query(on: req.db)
+        try await RefreshToken.query(on: req.db)
+            .filter(\.$token == hashToken(refreshToken.refreshToken))
             .filter(\.$user.$id == payload.id)
-            .all()
-        for refresh in tokens{
-            if try Bcrypt.verify(refreshToken.refreshToken, created: refresh.token) {
-                try await refresh.delete(on: req.db)
-                return .noContent
-                
-            }
-        }
+            .delete()
         
-        throw Abort(.notFound)
+        return .noContent
     }
     
     
@@ -114,12 +109,18 @@ struct AuthController: RouteCollection {
         let googlePayload = try signers.verify(googleToken.token, as: GooglePayload.self)
         
         
-        if let user = try await User.query(on: req.db).filter(\.$googleId == googlePayload.sub).first(){
+        if let user = try await User.query(on: req.db)
+            .filter(\.$googleId == googlePayload.sub)
+            .filter(\.$deletedAt == nil)
+            .first(){
             
             return try await generateToken(user: user, req: req)
         }
         
-        if let user = try await User.query(on: req.db).filter(\.$email == googlePayload.email).first(){
+        if let user = try await User.query(on: req.db)
+            .filter(\.$email == googlePayload.email)
+            .filter(\.$deletedAt == nil)
+            .first(){
             
             user.googleId = googlePayload.sub
             try await user.save(on: req.db)
@@ -137,32 +138,27 @@ struct AuthController: RouteCollection {
     
     @Sendable
     func refreshAccessToken(req: Request) async throws -> LoginResponse {
-        print("entrée dans la route refresh")
         try RefreshTokenRequestDTO.validate(content: req)
         let refreshToken = try req.content.decode(RefreshTokenRequestDTO.self)
         
         let signerRefresh = JWTSigner.hs256(key: req.application.config.JWT_SECRET_REFRESH)
         let payload = try signerRefresh.verify(refreshToken.refreshToken, as: UserPayload.self)
         
-        let tokens = try await RefreshToken.query(on: req.db)
+        guard let stored = try await RefreshToken.query(on: req.db)
+            .filter(\.$token == hashToken(refreshToken.refreshToken))
             .filter(\.$user.$id == payload.id)
-            .all()
-        for refresh in tokens{
-            if try Bcrypt.verify(refreshToken.refreshToken, created: refresh.token) {
-                if refresh.expireAt > Date() {
-                    try await refresh.delete(on: req.db)
-                    guard let user = try await User.find(payload.id, on: req.db) else{
-                        throw Abort(.notFound)
-                        
-                    }
-                    print ("génération des tokens")
-                    return try await generateToken(user: user, req: req)
-                }
-                
-                
-            }
+            .first(),
+              stored.expireAt > Date()
+        else {
+            throw Abort(.unauthorized, reason: "INVALID_REFRESH_TOKEN")
         }
-        throw Abort(.notFound)
+        try await stored.delete(on: req.db)
+        guard let user = try await User.find(payload.id, on: req.db) else{
+            throw Abort(.notFound)
+            
+        }
+        return try await generateToken(user: user, req: req)
+        
         
     }
     
@@ -171,22 +167,27 @@ struct AuthController: RouteCollection {
     // MARK: Service Function
     
     private func generateToken(user: User, req: Request) async throws -> LoginResponse {
-        let payloadAccess = UserPayload(id: user.id!, expiration: 60 * 15)
+        let userId = try user.requireID()
+        
+        let payloadAccess = UserPayload(id: userId, expiration: 60 * 15)
         let signerAccess = JWTSigner.hs256(key: req.application.config.JWT_SECRET)
         let accessToken = try signerAccess.sign(payloadAccess)
         
-        let payloadRefresh = UserPayload(id: user.id!, expiration: 3600 * 24 * 30)
+        let payloadRefresh = UserPayload(id: userId, expiration: 3600 * 24 * 30)
         let signerRefresh = JWTSigner.hs256(key: req.application.config.JWT_SECRET_REFRESH)
         let refreshTokenNotHash = try signerRefresh.sign(payloadRefresh)
         
         let refreshToken = RefreshToken()
-        refreshToken.$user.id = user.id!
+        refreshToken.$user.id = userId
         refreshToken.expireAt = payloadRefresh.expiration
-        refreshToken.token = try Bcrypt.hash(refreshTokenNotHash)
+        refreshToken.token = hashToken(refreshTokenNotHash)
         
         try await refreshToken.save(on: req.db)
         
         return LoginResponse(accessToken: accessToken, accessTokenExpiration: payloadAccess.expiration, refreshToken: refreshTokenNotHash)
     }
     
+    private func hashToken(_ token: String) -> String {
+        SHA256.hash(data: Data(token.utf8)).hex
+    }
 }

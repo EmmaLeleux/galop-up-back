@@ -106,4 +106,15 @@ final class User: Model, @unchecked Sendable, Content {
         
     }
     
+    func toPublicDTO(url: String) -> UserPublicResponseDTO{
+        
+        
+        return UserPublicResponseDTO(
+            id: self.id ?? UUID(),
+            username: self.username,
+            picture: self.pictureId?.toDTO(url: url)
+        )
+        
+    }
+    
 }

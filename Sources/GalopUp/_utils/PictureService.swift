@@ -11,7 +11,8 @@ import SotoS3
 struct PictureService {
     let s3: S3
     let mainBucket: String
-
+    let endpoint: String
+    
     func upload(createPictureDto: CreatePictureDto) async throws -> String{
         let file = createPictureDto.file
         
@@ -21,7 +22,11 @@ struct PictureService {
             throw Abort(.unsupportedMediaType, reason: "INVALID_MEDIA")
         }
         
-        let key = "\(createPictureDto.bucketname != nil ? createPictureDto.bucketname! + "/": "")\(UUID().uuidString)\(file.extension ?? ".png")"
+        var folder = ""
+        if let bucketname = createPictureDto.bucketname {
+            folder = "\(bucketname)/"
+        }
+        let key = "\(folder)\(UUID().uuidString).\(extention)"
         
         let allowedContentTypes = ["image/jpeg", "image/png", "image/webp"]
         guard let contentType = file.contentType?.serialize(),
@@ -41,7 +46,7 @@ struct PictureService {
     
     func getPresignedUrl(key: String) async throws -> String {
         let url = try await s3.signURL(
-            url: URL(string: "http://localhost:9001/\(mainBucket)/\(key)")!,
+            url: URL(string: "\(endpoint)/\(mainBucket)/\(key)")!,
             httpMethod: .GET,
             expires: .hours(24)
         )
@@ -51,8 +56,8 @@ struct PictureService {
     
     func delete(key: String) async throws{
         let deleteRequest = S3.DeleteObjectRequest(
-                bucket: mainBucket,
-                key: key
-            )
-            _ = try await s3.deleteObject(deleteRequest)    }
+            bucket: mainBucket,
+            key: key
+        )
+        _ = try await s3.deleteObject(deleteRequest)    }
 }

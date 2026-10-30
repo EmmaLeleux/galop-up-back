@@ -26,4 +26,13 @@ final class ThemeQuestion: Model, @unchecked Sendable, Content {
     
     init() {}
     
+    func toDTO() -> ThemeQuestionResponseDto{
+        
+        return ThemeQuestionResponseDto(
+            id: self.id ?? UUID(),
+            name: self.name
+        )
+        
+    }
+    
 }

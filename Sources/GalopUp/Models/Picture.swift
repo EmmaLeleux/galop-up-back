@@ -34,8 +34,7 @@ final class Picture: Model, @unchecked Sendable, Content {
     
     @Children(for: \.$pictureId) var users: [User]
     
-    @Children(for: \.$picture) var quiz: [Quiz]
-
+    @Children(for: \.$pictureId) var questions: [Question]
 
     
     

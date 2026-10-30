@@ -15,6 +15,7 @@ struct PictureMigration : AsyncMigration {
             .field("key", .string, .required)
             .field("name", .string, .required)
             .field("order", .int)
+            .field("isDefault", .bool, .required)
             .field("post_id", .uuid, .references("post", "id"))
             .field("comment_id", .uuid, .references("comment", "id"))
             .create()

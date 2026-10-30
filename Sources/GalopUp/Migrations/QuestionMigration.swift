@@ -19,6 +19,7 @@ struct QuestionMigration : AsyncMigration {
             .field("lesson_id", .uuid, .references("lesson", "id"))
             .field("theme_id", .uuid, .required, .references("themeQuestion", "id"))
             .field("user_id", .uuid, .required, .references("user", "id"))
+            .field("picture_id", .uuid, .references("picture", "id"))
             .create()
     }
     

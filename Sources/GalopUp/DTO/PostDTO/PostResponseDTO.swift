@@ -12,9 +12,9 @@ struct PostResponseDTO : Content {
     let title : String
     let content : String
     let pictures: [GetPictureDto]
-    let author: UserResponseDTO
+    let author: UserPublicResponseDTO
     let createdAt: Date
-    let likes: [UserResponseDTO]
+    let nbLikes: Int
     let isLikeByMe: Bool
    
 }

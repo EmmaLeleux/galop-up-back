@@ -16,11 +16,16 @@ struct GooglePayload: JWTPayload, Authenticatable {
     var aud: String
     var exp: ExpirationClaim
     var iss: String
-
+    var email_verified: Bool
+    
     func verify(using signer: JWTSigner) throws {
+        if email_verified == false {
+            throw JWTError.claimVerificationFailure(name: "email_verified", reason: "not verified")
+        }
+        
         try exp.verifyNotExpired()
         
-        guard aud.contains(Environment.get("GOOGLE_ID_CLIENT_IOS") ?? "") else {
+        guard let clientId = Environment.get("GOOGLE_ID_CLIENT_IOS"), aud == clientId else {
             throw JWTError.claimVerificationFailure(name: "aud", reason: "invalid audience")
         }
         guard iss == "accounts.google.com" || iss == "https://accounts.google.com" else {

@@ -15,17 +15,15 @@ struct CreatePostDTO : Content, Validatable {
 //    let lessons: [Lesson]
 //    let events: [EventCustom]
     
-    static func validations(_ validations: inout Validations){
-        validations.add("title", as: String.self)
-        validations.add("content", as: String.self)
-        
+    static func validations(_ validations: inout Validations) {
+        validations.add("title", as: String.self, is: !.empty && .count(...100))
+        validations.add("content", as: String.self, is: !.empty)
     }
     
     func toModel() -> Post {
         let model = Post()
         model.title = title
         model.content = content
-        model.createdAt = Date()
         return model
     }
    

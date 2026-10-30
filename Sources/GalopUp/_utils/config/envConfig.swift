@@ -19,10 +19,11 @@ struct EnvConfig{
     let RUSTFS_SECRET_KEY: String
     let RUSTFS_ENDPOINT: String
     let RUSTFS_BUCKET: String
+    let BACKOFFICE_URL: String
     
     static func validateEnv() throws -> EnvConfig{
         let missing = ["DATABASE_HOST", "DATABASE_NAME", "DATABASE_USERNAME",
-                       "DATABASE_PASSWORD", "DATABASE_PORT", "JWT_SECRET", "JWT_SECRET_REFRESH", "RUSTFS_ACCESS_KEY", "RUSTFS_SECRET_KEY", "RUSTFS_ENDPOINT", "RUSTFS_BUCKET"]
+                       "DATABASE_PASSWORD", "DATABASE_PORT", "JWT_SECRET", "JWT_SECRET_REFRESH", "RUSTFS_ACCESS_KEY", "RUSTFS_SECRET_KEY", "RUSTFS_ENDPOINT", "RUSTFS_BUCKET", "BACKOFFICE_URL"]
             .filter { Environment.get($0) == nil }
         
         guard missing.isEmpty else {
@@ -40,7 +41,8 @@ struct EnvConfig{
             RUSTFS_ACCESS_KEY: Environment.get("RUSTFS_ACCESS_KEY")!,
             RUSTFS_SECRET_KEY: Environment.get("RUSTFS_SECRET_KEY")!,
             RUSTFS_ENDPOINT: Environment.get("RUSTFS_ENDPOINT")!,
-            RUSTFS_BUCKET: Environment.get("RUSTFS_BUCKET")!
+            RUSTFS_BUCKET: Environment.get("RUSTFS_BUCKET")!,
+            BACKOFFICE_URL: Environment.get( "BACKOFFICE_URL")!
         )
         
         

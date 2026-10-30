@@ -11,7 +11,6 @@ struct CreateUserDTO : Content, Validatable {
     let email : String
     let password : String
     let confirmPassword: String
-    let role: UserRoleEnum
     
     static func validations(_ validations: inout Validations){
         validations.add("email", as: String.self, is: .email, customFailureDescription: "EMAIL_INVALID")
@@ -23,7 +22,7 @@ struct CreateUserDTO : Content, Validatable {
         let model = User()
         model.email = email
         model.password = password
-        model.role = role
+        model.role = UserRoleEnum.USER
         model.isBanned = false
         return model
     }
@@ -33,7 +32,7 @@ struct CreateUserDTO : Content, Validatable {
 private extension Validator where T == String {
     static var strongPassword: Validator<String> {
         .init { value in
-            let regex = #"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"#
+            let regex = #"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{12,}$"#
             let isValid = value.range(of: regex, options: .regularExpression) != nil
             return StrongPasswordResult(isValid: isValid)
         }

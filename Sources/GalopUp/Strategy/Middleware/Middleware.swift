@@ -31,8 +31,5 @@ final class GalopUpMiddleware: Middleware {
         return next.respond(to: request)
 
     }
-    
-    
-    
    
 }

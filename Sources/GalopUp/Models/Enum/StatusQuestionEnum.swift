@@ -5,8 +5,8 @@
 //  Created by Emma on 15/04/2026.
 //
 
-enum StatusQuestionEnum: Codable{
-    case EN_ATTENTE
-    case VALIDE
-    case A_CORRRIGER
+enum StatusQuestionEnum: String, Codable{
+    case EN_ATTENTE = "En attente"
+    case VALIDE = "Valide"
+    case A_CORRRIGER = "A corriger"
 }

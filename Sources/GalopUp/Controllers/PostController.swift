@@ -24,27 +24,35 @@ struct PostController: RouteCollection {
     
     @Sendable
     func createPost(req: Request) async throws -> PostResponseDTO {
-        let payload = try req.auth.require(UserPayload.self)
+        let user = try await protectService.protect(req: req, roles: [.USER])
         
-        let postDto = try req.content.decode(CreatePostDTO.self)
-        let post = postDto.toModel()
-        post.$user.id = payload.id
-        
-        try await post.save(on: req.db)
-        guard let postId = post.id else {
-            throw Abort(.internalServerError, reason: "POST_NOT_CREATED")
+        guard let userId = user.id else{
+            throw Abort(.badRequest, reason: "USER_NOT_FOUND")
         }
         
+        try CreatePostDTO.validate(content: req)
+        
+        let postDto = try req.content.decode(CreatePostDTO.self)
         
         if let postPicture = postDto.pictures{
             if postPicture.count > 4 {
                 throw Abort(.badRequest, reason: "TOO_MANY_POST_PICTURES")
             }
+        }
+        
+        let post = postDto.toModel()
+        post.$user.id = userId
+        
+        try await post.save(on: req.db)
+        
+        let postId = try post.requireID()
+        
+        if let postPicture = postDto.pictures{
             for (index, picture) in postPicture.enumerated(){
                 let createPicture = CreatePictureDto(file: picture, order: index)
                 
                 let newKey = try await pictureService.upload(createPictureDto: createPicture)
-                let newPictureId = createPicture.toModel(key: newKey, postId: post.id)
+                let newPictureId = createPicture.toModel(key: newKey, postId: postId)
                 try await newPictureId.save(on: req.db)
             }
         }
@@ -53,12 +61,10 @@ struct PostController: RouteCollection {
         try await post.$user.load(on: req.db)
         try await post.$likes.load(on: req.db)
         
-        
-        
         let picturesPostDto = try await pictureController.getPicturesByPostId(postId: postId, req: req)
         
-        let userDto = try await userController.getMyUser(req: req)
-        return post.toDTO(pictureDto: picturesPostDto, userDto: userDto, currentUserId: payload.id)
+        let userDto = try await userController.getUserById(req: req, userId: userId)
+        return post.toDTO(pictureDto: picturesPostDto, userDto: userDto, currentUserId: userId)
     }
     
     @Sendable
@@ -81,7 +87,8 @@ struct PostController: RouteCollection {
         var postsDto: [PostResponseDTO] = []
         
         for post in posts {
-            let picturesPostsDto = try await pictureController.getPicturesByPostId(postId: post.id!, req: req)
+            let postId = try post.requireID()
+            let picturesPostsDto = try await pictureController.getPicturesByPostId(postId: postId, req: req)
             let userDto = try await userController.getUserById(req: req, userId: post.$user.id)
             postsDto.append(post.toDTO(pictureDto: picturesPostsDto, userDto: userDto, currentUserId: payload.id))
         }
@@ -98,8 +105,8 @@ struct PostController: RouteCollection {
     
     @Sendable
     func likePost(req: Request) async throws -> HTTPStatus {
-        let user = try await protectService.protect(req: req, roles: [.ADMIN])
-
+        let user = try await protectService.protect(req: req, roles: [.USER])
+        
         guard let postId = req.parameters.get("postId", as: UUID.self) else {
             throw Abort(.badRequest)
         }
@@ -120,7 +127,6 @@ struct PostController: RouteCollection {
         like.$post.id = postId
         like.$user.id = userId
         try await like.save(on: req.db)
-        print(like)
         return .created
     }
     

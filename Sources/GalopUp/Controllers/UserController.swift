@@ -41,7 +41,7 @@ struct UserController: RouteCollection {
     
     
     @Sendable
-    func getUserByIdController(req: Request) async throws -> UserResponseDTO {
+    func getUserByIdController(req: Request) async throws -> UserPublicResponseDTO {
         try req.auth.require(UserPayload.self)
         
         guard let user = try await User.find(req.parameters.get("id"), on: req.db) else {
@@ -51,7 +51,7 @@ struct UserController: RouteCollection {
         try await user.$pictureId.load(on: req.db)
 
         let url = try await pictureService.getPresignedUrl(key: user.pictureId?.key ?? "")
-        return user.toDTO(url: url)
+        return user.toPublicDTO(url: url)
     }
     
     
@@ -152,10 +152,8 @@ struct UserController: RouteCollection {
     }
     
     
-    static func verifyEmailAndUsernameUnique(email: String, username: String, req: Request) async throws {
-        let listUser = User.query(on: req.db)
-        
-        let existingEmail = try await listUser
+    static func verifyEmailAndUsernameUnique(email: String, username: String, req: Request) async throws {        
+        let existingEmail = try await User.query(on: req.db)
             .filter(\.$email == email)
             .first()
         
@@ -163,7 +161,7 @@ struct UserController: RouteCollection {
             throw Abort(.badRequest, reason: "EMAIL_ALREADY_EXISTS")
         }
         
-        let existingUsername = try await listUser
+        let existingUsername = try await User.query(on: req.db)
             .filter(\.$username == username)
             .first()
         
@@ -172,7 +170,7 @@ struct UserController: RouteCollection {
         }
     }
     
-    func getUserById(req: Request, userId: UUID) async throws -> UserResponseDTO {
+    func getUserById(req: Request, userId: UUID) async throws -> UserPublicResponseDTO {
         
         guard let user = try await User.find(userId, on: req.db) else {
             throw Abort(.notFound, reason: "USER_NOT_FOUND")
@@ -181,6 +179,6 @@ struct UserController: RouteCollection {
         try await user.$pictureId.load(on: req.db)
 
         let url = try await pictureService.getPresignedUrl(key: user.pictureId?.key ?? "")
-        return user.toDTO(url: url)
+        return user.toPublicDTO(url: url)
     }
 }
