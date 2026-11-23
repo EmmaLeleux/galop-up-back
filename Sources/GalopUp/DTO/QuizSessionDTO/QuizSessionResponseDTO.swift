@@ -13,6 +13,7 @@ struct QuizSessionResponseDto: Content {
     var niveauGalop: LevelGalopLessonQuizEnum?
     var createdAt: Date
     var chrono: Double?
+    var status: StatusQuizSessionEnum
     var nbQuestion: Int
     var nbGoodAnswer: Int
     var remainingSeconds: Double?

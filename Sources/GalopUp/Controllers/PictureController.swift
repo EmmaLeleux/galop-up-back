@@ -17,8 +17,22 @@ struct PictureController: RouteCollection {
         
         let protectedRoutes = user.grouped(GalopUpMiddleware())
         protectedRoutes.get(use: getPictureDefault)
-    }
+        protectedRoutes.on(.POST, body: .collect(maxSize: "90mb"), use: createPicture)    }
     
+    
+    @Sendable
+    func createPicture(req: Request) async throws -> GetPictureDto {
+        _ = try await protectService.protect(req: req, roles: [.ADMIN])
+        
+        let pictureDto = try req.content.decode(CreatePictureDto.self)
+        
+        let newKey = try await pictureService.upload(createPictureDto: pictureDto)
+        let newPicture = pictureDto.toModel(key: newKey)
+        try await newPicture.save(on: req.db)
+        
+        let url = try await pictureService.getPresignedUrl(key: newPicture.key)
+        return newPicture.toDTO(url: url)
+    }
     
     @Sendable
     func getPictureDefault(req: Request) async throws -> [GetPictureDto] {

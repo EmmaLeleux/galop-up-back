@@ -26,8 +26,8 @@ final class Lesson: Model, @unchecked Sendable, Content {
     @Timestamp(key: "createdAt", on: .create)
     var createdAt: Date?
     
-    @Field(key: "picture")
-    var picture: String
+    @Parent(key: "picture_id")
+    var picture: Picture
     
     @Field(key: "status")
     var status: LessonStatusEnum
@@ -45,5 +45,17 @@ final class Lesson: Model, @unchecked Sendable, Content {
     var posts: [Post]
     
     init() {}
+    
+    func toDTO(urlLesson: String, currentUserId: UUID) -> LessonResponseDTO {
+        
+        return LessonResponseDTO(
+            id: self.id ?? UUID(),
+            name: self.name,
+            description: self.description,
+            level: self.level,
+            picture: self.picture.toDTO(url: urlLesson),
+            content: self.content,
+            isLikeByMe: self.likes.contains { $0.id == currentUserId })
+    }
     
 }

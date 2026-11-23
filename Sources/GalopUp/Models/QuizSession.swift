@@ -44,6 +44,11 @@ final class QuizSession: Model, @unchecked Sendable, Content {
     @Parent(key: "user_id")
     var user: User
     
+    var deadline: Date? {
+        guard let start = createdAt, let limit = timeLimit else { return nil }
+        return start.addingTimeInterval(TimeInterval(limit))
+    }
+    
     
     
     init() {}
@@ -70,6 +75,7 @@ final class QuizSession: Model, @unchecked Sendable, Content {
             niveauGalop: self.niveauGalop,
             createdAt: self.createdAt ?? Date(),
             chrono: totalTime,
+            status: self.status,
             nbQuestion: self.nbQuestion,
             nbGoodAnswer: self.nbGoodAnswer,
             remainingSeconds: remaining,

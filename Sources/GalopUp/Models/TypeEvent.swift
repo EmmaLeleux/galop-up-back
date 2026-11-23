@@ -25,4 +25,13 @@ final class TypeEvent: Model, @unchecked Sendable, Content {
     
     init() {}
     
+    func toDTO() -> TypeEventResponseDTO{
+        
+        return TypeEventResponseDTO(
+            id: self.id ?? UUID(),
+            name: self.name
+        )
+        
+    }
+    
 }

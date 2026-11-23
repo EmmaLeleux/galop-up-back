@@ -95,7 +95,7 @@ struct QuestionController: RouteCollection {
     }
     
     
-    func getOneQuestion(req: Request, difficulty: LevelGalopLessonQuizEnum? = nil, exceptIds: [UUID]) async throws -> QuestionResponseDTO{
+    func getOneQuestion(req: Request, difficulty: LevelGalopLessonQuizEnum? = nil, exceptIds: [UUID]) async throws -> QuestionResponseDTO?{
         
         var query = Question.query(on: req.db)
             .filter(\.$status == .VALIDE)
@@ -103,9 +103,7 @@ struct QuestionController: RouteCollection {
         if let difficulty {
             query = query.filter(\.$difficulty == difficulty)
         }
-        print(exceptIds)
         if !exceptIds.isEmpty {
-            print(exceptIds)
             query = query.filter(\.$id !~ exceptIds)
         }
         
@@ -114,7 +112,7 @@ struct QuestionController: RouteCollection {
             .first()
                 
         else {
-            throw Abort(.notFound, reason: "NO_QUESTION_AVAILABLE")
+            return nil
         }
         
         try await question.$pictureId.load(on: req.db)

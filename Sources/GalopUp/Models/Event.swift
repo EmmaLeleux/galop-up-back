@@ -20,25 +20,46 @@ final class EventCustom: Model, @unchecked Sendable, Content {
     @Field(key: "description")
     var description: String
     
-    @Field(key: "picture")
-    var picture: String
+    @Parent(key: "picture_id")
+    var picture: Picture
     
-    @Field(key: "date")
-    var date: Date
+    @Field(key: "startDate")
+    var startDate: Date
     
-    @Field(key: "place")
-    var place: String
+    @Field(key: "endDate")
+    var endDate: Date
     
-    @Field(key: "level")
-    var level: LevelGalopUserEnum?
+    @OptionalField(key: "deadline")
+    var deadline: Date?
     
-    @Field(key: "lattitude")
-    var lattitude: Double
+    @Field(key: "placeName")
+    var placeName: String
+    
+    @Field(key: "address")
+    var address: String
+    
+    @Field(key: "latitude")
+    var latitude: Double
     
     @Field(key: "longitude")
     var longitude: Double
     
-    @Field(key: "deletedAt")
+    @OptionalField(key: "price")
+    var price: Double?
+    
+    @OptionalField(key: "capacity")
+    var capacity: Int?
+    
+    @OptionalField(key: "levelMin")
+    var levelMin: LevelGalopUserEnum?
+    
+    @OptionalField(key: "levelMax")
+    var levelMax: LevelGalopUserEnum?
+    
+    @OptionalField(key: "equipment")
+    var equipment: String?
+    
+    @OptionalField(key: "deletedAt")
     var deletedAt: Date?
     
     @Parent(key: "type_id")
@@ -56,5 +77,29 @@ final class EventCustom: Model, @unchecked Sendable, Content {
     var posts: [Post]
     
     init() {}
+    
+    func toDTO(urlEvent: String, urlAuthor: String, currentUserId: UUID) -> EventResponseDTO {
+        
+        return EventResponseDTO(
+            id: self.id ?? UUID(),
+            name: self.name,
+            description: self.description,
+            picture: self.picture.toDTO(url: urlEvent),
+            startDate: self.startDate,
+            endDate: self.endDate,
+            deadline: self.deadline,
+            placeName: self.placeName,
+            address: self.address,
+            latitude: self.latitude,
+            longitude: self.longitude,
+            price: self.price,
+            capacity: self.capacity,
+            levelMin: self.levelMin,
+            levelMax: self.levelMax,
+            equipment: self.equipment,
+            typeEvent: self.type.toDTO(),
+            author: self.author.toPublicDTO(url: urlAuthor),
+            isLikeByMe: self.likes.contains { $0.id == currentUserId })
+    }
     
 }

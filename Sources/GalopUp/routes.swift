@@ -30,4 +30,7 @@ func routes(_ app: Application) throws {
     try app.register(collection: ThemeQuestionController(protectService: protectService))
     try app.register(collection: QuestionController(pictureService: pictureService, protectService: protectService))
     try app.register(collection: QuizSessionController(userController: userController, protectService: protectService, questionController: questionController))
+    try app.register(collection: TypeEventController(protectService: protectService))
+    try app.register(collection: EventController(pictureService: pictureService, protectService: protectService))
+    try app.register(collection: LessonController(pictureService: pictureService, protectService: protectService))
 }

@@ -7,6 +7,7 @@
 
 import Fluent
 import Vapor
+import SQLKit
 
 struct QuizSessionController: RouteCollection {
     let userController: UserController
@@ -18,6 +19,9 @@ struct QuizSessionController: RouteCollection {
         let protectedRoutes = themeQuestion.grouped(GalopUpMiddleware())
         protectedRoutes.on(.POST, use: createQuizSession)
         protectedRoutes.on(.PATCH, use: AnswerQuestionAndContinueQuiz)
+        protectedRoutes.patch("stop", use: stopQuiz)
+        protectedRoutes.patch("finish", use: finishQuiz)
+        protectedRoutes.on(.GET, use: getQuizHistory)
         
     }
     
@@ -33,7 +37,9 @@ struct QuizSessionController: RouteCollection {
         let quizSessionDto = try req.content.decode(CreateQuizSessionDTO.self)
         
         let quizSession = try quizSessionDto.toModel(userId: userId)
-        
+        if quizSession.quiz == .CONTRE_LA_MONTRE{
+            quizSession.timeLimit = 60
+        }
         try await quizSession.save(on: req.db)
         
         try await quizSession.$user.load(on: req.db)
@@ -54,10 +60,10 @@ struct QuizSessionController: RouteCollection {
         return QuizSessionQuestionResponseDto(session: quizSession.toDTO(userDto: userDto), question: question)
     }
     
-   
+    
     func getMyActiveSession(req: Request) async throws -> QuizSession{
         let user = try await protectService.protect(req: req, roles: [.USER])
-
+        
         let session = try await QuizSession.query(on: req.db)
             .filter(\.$user.$id, .equal, user.requireID())
             .filter(\.$status == .EN_COURS)
@@ -71,24 +77,100 @@ struct QuizSessionController: RouteCollection {
     }
     
     @Sendable
+    func stopQuiz(req: Request) async throws -> HTTPStatus{
+        
+        let _ = try await protectService.protect(req: req, roles: [.USER])
+        
+        let session = try await getMyActiveSession(req: req)
+        
+        session.status = .ABANDONE
+        session.endAt = Date()
+        
+        try await session.save(on: req.db)
+        
+        return .noContent
+        
+    }
+    
+    @Sendable
+    func finishQuiz(req: Request) async throws -> QuizSessionQuestionResponseDto {
+        let user = try await protectService.protect(req: req, roles: [.USER])
+        let session = try await getMyActiveSession(req: req)
+        
+        guard let deadline = session.deadline else {
+            throw Abort(.badRequest, reason: "QUIZ_NOT_CONCERNED")
+        }
+        
+        guard Date() >= deadline.addingTimeInterval(-1) else {
+            throw Abort(.badRequest, reason: "TIMING_NOT_REACHED")
+        }
+        
+        session.status = .TERMINE
+        session.endAt = deadline
+        try await session.save(on: req.db)
+        
+        try await session.$user.load(on: req.db)
+        
+        let userDto = try await userController.getUserById(req: req, userId: user.requireID())
+        
+        let sessionDto = session.toDTO(userDto: userDto)
+        
+        return QuizSessionQuestionResponseDto(session: sessionDto, question: nil)
+    }
+    
+    @Sendable
+    func getQuizHistory(req: Request) async throws -> [QuizHistoryDTO] {
+        let payload = try req.auth.require(UserPayload.self)
+        
+        guard let sql = req.db as? any SQLDatabase else {
+            throw Abort(.internalServerError, reason: "SQL_DATABASE_REQUIRED")
+        }
+        
+        return try await sql.raw("""
+            SELECT id,
+                   difficulty,
+                   niveauGalop,
+                   createdAt,
+                   CAST(TIMESTAMPDIFF(MICROSECOND, createdAt, endAt) / 1000000 AS DOUBLE) AS chrono,
+                   nbQuestion,
+                   nbGoodAnswer,
+                   quiz
+            FROM quizSession
+            WHERE user_id = \(bind: payload.id) AND status = 'Terminé'
+            ORDER BY createdAt DESC
+            LIMIT 20
+            """).all(decoding: QuizHistoryDTO.self)
+    }
+    
+    @Sendable
     func AnswerQuestionAndContinueQuiz(req:Request) async throws -> QuizSessionQuestionResponseDto {
         let user = try await protectService.protect(req: req, roles: [.USER])
-
+        
         let session = try await getMyActiveSession(req: req)
-
+        
+        if let deadline = session.deadline, Date() > deadline.addingTimeInterval(2) {
+            session.status = .TERMINE
+            session.endAt = deadline
+            try await session.save(on: req.db)
+            
+            let userDto = try await userController.getUserById(req: req, userId: user.requireID())
+            return QuizSessionQuestionResponseDto(session: session.toDTO(userDto: userDto), question: nil)
+        }
+        
         let answerDTO = try req.content.decode(CheckAnswerDTO.self)
-
+        
         let answer = try await Answer.query(on: req.db)
             .filter(\.$id, .equal, answerDTO.id)
             .first()
-
+        
         guard let answer = answer else{
             throw Abort(.notFound, reason: "ANSWER_NOT_FOUND")
         }
-        //en contre la montre, vérifier d'abord le chrono, et en survie, vérifier le nombre de vie
-        guard session.nbQuestion < 20 else{
-            throw Abort(.badRequest, reason: "LIMIT_QUIZ_REACHED")
+        
+        guard session.status == .EN_COURS else{
+            throw Abort(.badRequest, reason: "QUIZ_ALREADY_FINISHED")
         }
+        
         try await answer.$question.load(on: req.db)
         
         let listQuestions = try await QuizSessionQuestion.query(on: req.db)
@@ -114,17 +196,27 @@ struct QuizSessionController: RouteCollection {
         
         try await question.save(on: req.db)
         
-        if session.nbQuestion >= 20{
+        
+        if (session.quiz == .CLASSIQUE && session.nbQuestion >= 20) || (session.quiz == .SURVIE && (session.nbQuestion - session.nbGoodAnswer) >= 3){
             session.status = .TERMINE
+            session.endAt = Date()
         }
+        
         
         var levelQuestion = session.niveauGalop
         if session.difficulty == .CROISSANTE{
             levelQuestion = .GALOP4
         }
         
+        let questionDto = try await questionController.getOneQuestion(req: req, difficulty: levelQuestion, exceptIds: exceptIds)
+        
+        if questionDto == nil{
+            session.status = .TERMINE
+            session.endAt = Date()
+        }
+        
         try await session.save(on: req.db)
-
+        
         try await session.$user.load(on: req.db)
         
         let userDto = try await userController.getUserById(req: req, userId: user.requireID())
@@ -132,10 +224,11 @@ struct QuizSessionController: RouteCollection {
         let sessionDto = session.toDTO(userDto: userDto)
         
         
-        let questionDto = try await questionController.getOneQuestion(req: req, difficulty: levelQuestion, exceptIds: exceptIds)
-
+        
+        
+        
         return QuizSessionQuestionResponseDto(session: sessionDto, question: questionDto)
     }
     
-
+    
 }

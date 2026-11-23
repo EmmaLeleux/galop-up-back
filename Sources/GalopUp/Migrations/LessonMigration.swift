@@ -16,9 +16,9 @@ struct LessonMigration : AsyncMigration {
             .field("description", .string, .required)
             .field("level", .string, .required)
             .field("createdAt", .datetime)
-            .field("picture", .string, .required)
+            .field("picture_id", .uuid, .required, .references("picture", "id"))
             .field("status", .string, .required)
-            .field("content", .string, .required)
+            .field("content", .custom("TEXT"), .required)
             .create()
     }
     
